@@ -1,0 +1,132 @@
+project:
+  title: "Query-Token Adaptive Precision Routing for Elastic LLM Inference"
+  question: "Can an LLM choose precision dynamically from query, token, layer, and runtime signals so that it spends high precision only where it is needed, improving the quality-latency-memory Pareto frontier over static mixed precision?"
+  status: active
+  started: "2026-06-15"
+  domain: "LLM inference optimization, mixed-precision quantization, adaptive serving"
+
+continuity:
+  requested_skill: "autoresearch"
+  loop_status: "not configured"
+  note: "This environment exposes no cron.add, cron.list, or Claude /loop control tool. Continue by reading research-state.yaml and findings.md."
+
+literature:
+  key_papers:
+    - id: "park2024anyprecision"
+      title: "Any-Precision LLM: Low-Cost Deployment of Multiple, Different-Sized LLMs"
+      authors: "Park et al."
+      year: 2024
+      url: "https://arxiv.org/abs/2402.10517"
+      relevance: "Shows one checkpoint can serve multiple bitwidths by overlaying precision variants, but leaves the selection policy mostly coarse and uniform."
+    - id: "nair2025matryoshka"
+      title: "Matryoshka Quantization"
+      authors: "Nair et al."
+      year: 2025
+      url: "https://arxiv.org/abs/2502.06786"
+      relevance: "Introduces nested bit slicing for multi-scale quantization, making runtime precision choice practical."
+    - id: "liu2025flexquant"
+      title: "FlexQuant: A Flexible and Efficient Dynamic Precision Switching Framework for LLM Quantization"
+      authors: "Liu et al."
+      year: 2025
+      url: "https://arxiv.org/abs/2506.12024"
+      relevance: "Uses entropy and KL-style signals for token-generation-time precision switching."
+    - id: "kwon2025dpllm"
+      title: "DP-LLM: Runtime Model Adaptation with Dynamic Layer-wise Precision Assignment"
+      authors: "Kwon et al."
+      year: 2025
+      url: "https://arxiv.org/abs/2508.06041"
+      relevance: "Direct seed paper: dynamic per-layer precision at decoding time via lightweight relative-error estimation."
+    - id: "zhang2025mixkvq"
+      title: "MixKVQ: Query-Aware Mixed-Precision KV Cache Quantization for Long-Context Reasoning"
+      authors: "Zhang et al."
+      year: 2025
+      url: "https://arxiv.org/abs/2512.19206"
+      relevance: "Extends query-aware mixed precision to KV cache channels for long-context reasoning."
+    - id: "wang2026mobiquant"
+      title: "MoBiQuant: Mixture-of-Bits Quantization for Token-Adaptive Any-Precision LLM"
+      authors: "Wang et al."
+      year: 2026
+      url: "https://arxiv.org/abs/2602.20191"
+      relevance: "Direct seed paper: token-aware routing over residual bit slices for any-precision inference."
+    - id: "gautam2026ramp"
+      title: "RAMP: Reinforcement Adaptive Mixed Precision Quantization for Efficient On Device LLM Inference"
+      authors: "Gautam and Jha"
+      year: 2026
+      url: "https://arxiv.org/abs/2603.17891"
+      relevance: "Static per-layer mixed precision via learned policies; useful baseline and contrast for runtime query-token adaptation."
+    - id: "pang2026tilefuse"
+      title: "TileFuse: A Fused Mixed-Precision Kernel Library for Efficient Quantized LLM Inference on AMD NPUs"
+      authors: "Pang et al."
+      year: 2026
+      url: "https://arxiv.org/abs/2606.11357"
+      relevance: "System-side reminder that precision policies only matter if runtime kernels can execute mixed formats efficiently."
+  unverified_seeds:
+    - id: "qaq_unverified"
+      title: "QAQ: Query-adaptive Mixed-precision Quantization for Large Language Models"
+      note: "Provided by user as a seed. I could not find a public indexed arXiv/web record for the exact title on 2026-06-15."
+  open_problems:
+    - "Quantization sensitivity is usually treated as layer-static, but recent papers show it changes by token, decoding step, and query."
+    - "Any-precision quantization creates multiple precision choices, but the field still needs cheap, accurate policies for deciding which precision to use and when."
+    - "Most adaptive methods study either weights or KV cache, not a unified budget allocator across both."
+    - "Runtime precision routers can erase their gains if routing overhead, kernel fragmentation, or bit switching costs are ignored."
+    - "Adaptive precision is often evaluated on average quality, but deployment needs per-query risk, tail latency, and SLA violation analysis."
+  evidence_gaps:
+    - "How predictable is per-query and per-token quantization sensitivity from cheap online features?"
+    - "Does query-aware routing help beyond token/layer-aware routing once average bit budget is controlled?"
+    - "Can one router transfer across models, tasks, or calibration domains?"
+    - "Which granularity is the best practical compromise: request-level, layer-level, token-level, channel-level, or KV-cache-only?"
+
+hypotheses:
+  - id: H1
+    statement: "Per-layer quantization sensitivity varies systematically with query type and decoding position, and can be predicted better than a static layer average using cheap activation/logit features."
+    status: pending
+    motivation: "This is the empirical foundation for query-token adaptive precision. If false, runtime routing has weak justification."
+    parent: null
+    priority: high
+  - id: H2
+    statement: "A lightweight precision router conditioned on query-level difficulty, token-level uncertainty, layer identity, and activation statistics can match static mixed precision quality at lower average effective bits."
+    status: pending
+    motivation: "This is the core algorithmic contribution."
+    parent: null
+    priority: high
+  - id: H3
+    statement: "Joint routing over weight precision and KV-cache precision improves long-context reasoning efficiency more than optimizing either component independently."
+    status: pending
+    motivation: "Long-context workloads shift memory pressure from weights toward KV cache, so the best precision target may depend on context length and query relevance."
+    parent: null
+    priority: medium
+  - id: H4
+    statement: "A router trained on one model family can transfer partially to another when features encode structural role and normalized sensitivity rather than raw layer indices."
+    status: pending
+    motivation: "Transferability is important for the method to be more than per-model calibration search."
+    parent: null
+    priority: medium
+
+experiments:
+  proxy_metric: "Pareto frontier of quality degradation versus average effective bits, latency, and routing overhead. Pilot metric: WikiText-2/C4 perplexity delta at matched average bits."
+  baseline_value: null
+  best_value: null
+  total_runs: 0
+  trajectory: []
+  planned_baselines:
+    - "FP16/BF16 reference"
+    - "Uniform 4-bit weight-only quantization"
+    - "Uniform any-precision slices, selected per request"
+    - "Static layer-wise mixed precision using calibration sensitivity"
+    - "DP-LLM-style per-layer runtime selector if implementation is feasible"
+    - "MoBiQuant-style token-aware bit-slice router if implementation is feasible"
+
+outer_loop:
+  cycle: 1
+  last_direction: "deepen"
+  last_reflection: "Narrowed from broad mixed precision to query-token adaptive precision routing for elastic LLM inference. Next step is to validate whether runtime sensitivity is predictable enough to justify a router."
+
+workspace:
+  findings: "findings.md"
+  log: "research-log.md"
+  direction: "docs/research-direction.md"
+  evaluation_plan: "docs/evaluation-plan.md"
+  literature_dir: "literature/"
+  experiments_dir: "experiments/"
+  to_human_dir: "to_human/"
+  paper_dir: "paper/"
