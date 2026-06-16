@@ -54,7 +54,7 @@ Fine-grained routing can look good in quality/bit metrics while losing in wall-c
 - Do not optimize only average perplexity. The relevant deployment question includes tail risk: which queries fail when the router under-allocates precision?
 - Start with layer-by-token routing before channel- or element-level routing. It is more implementable and closer to existing mixed-precision execution.
 - Treat KV cache as an extension, not the first dependency. Weight-only routing gives a cleaner first pilot; KV-cache routing becomes important for long-context reasoning.
-- The exact paper title "QAQ: Query-adaptive Mixed-precision Quantization for Large Language Models" could not be verified publicly on 2026-06-15. It should not be cited until a source is available.
+- QAQ is now available locally as `QAQ.pdf`. It validates that query-adaptive block/layer-wise precision routing is directly aligned with this project, but also means the novelty should move beyond basic query-conditioned bit-width selection.
 
 ## Open Questions
 
@@ -64,6 +64,8 @@ Fine-grained routing can look good in quality/bit metrics while losing in wall-c
 - How much overhead can a router spend before it destroys latency gains?
 - Can a learned router transfer across models, tasks, or context lengths?
 - Are failures concentrated in reasoning/math/code tasks, long-context retrieval, rare-token generation, or safety-sensitive refusals?
+- How much does QAQ's query-level router add beyond static 8-bit and 4-bit baselines, given that its reported QAQ accuracy is identical to static 8-bit in the current table?
+- Can QAQ's synchronous CPU-to-GPU loading overhead be reduced with predictive prefetching, cache-aware routing, or hardware-constrained schedules?
 
 ## Optimization Trajectory
 

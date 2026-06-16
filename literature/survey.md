@@ -18,7 +18,7 @@ Verification status:
 
 - DP-LLM: verified on arXiv, arXiv:2508.06041.
 - MoBiQuant: verified on arXiv, arXiv:2602.20191.
-- QAQ exact title: not found in public indexed arXiv/web search on 2026-06-15.
+- QAQ exact title: available locally as `QAQ.pdf`; public indexing was not found in web search on 2026-06-15/2026-06-16.
 
 ## Key Papers
 
@@ -29,6 +29,7 @@ Verification status:
 | FlexQuant | 2025 | Dynamic precision switching during token generation using uncertainty/divergence signals. |
 | DP-LLM | 2025 | Runtime layer-wise precision assignment based on estimated relative error. |
 | MixKVQ | 2025 | Query-aware mixed precision for KV cache in long-context reasoning. |
+| QAQ | 2025 | Query-conditioned block/layer bit-width routing with bit-plane weights and CPU/GPU on-demand loading. |
 | MoBiQuant | 2026 | Token-aware mixture-of-bits routing for any-precision LLMs. |
 | RAMP | 2026 | Learned static per-layer mixed precision with transfer claims. |
 | TileFuse | 2026 | Hardware/kernel reality for mixed-precision quantized inference. |
@@ -48,9 +49,9 @@ The research gap is not simply "better quantization". It is:
 
 ## Gaps
 
-### Gap 1: Query-Level Adaptation
+### Gap 1: Beyond Query-Level Adaptation
 
-DP-LLM and MoBiQuant are strongly token/layer oriented. MixKVQ introduces query relevance for KV cache. A central question remains: does query-level information improve routing beyond token/layer statistics?
+QAQ already targets query-level adaptation for block/layer precision. DP-LLM and MoBiQuant are strongly token/layer oriented, while MixKVQ introduces query relevance for KV cache. The remaining question is not whether query adaptation is possible, but whether hierarchical query-token-layer routing improves over QAQ-style query-only routing.
 
 ### Gap 2: Unified Weight and KV Precision
 
@@ -75,6 +76,7 @@ Query-token adaptive precision routing:
 
 ## Source URLs
 
+- QAQ: local file `QAQ.pdf`
 - Any-Precision LLM: https://arxiv.org/abs/2402.10517
 - Matryoshka Quantization: https://arxiv.org/abs/2502.06786
 - FlexQuant: https://arxiv.org/abs/2506.12024

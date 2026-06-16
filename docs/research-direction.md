@@ -99,11 +99,11 @@ Your takeaway:
 
 ### QAQ
 
-The exact title "QAQ: Query-adaptive Mixed-precision Quantization for Large Language Models" could not be verified publicly on 2026-06-15. If this is an internal, unpublished, or newly circulating paper, it should be treated as a directional seed rather than a confirmed citation.
+The local file `QAQ.pdf` is available in the workspace. It introduces Query-Adaptive Quantization: bit-plane weight decomposition, a trainable query-conditioned router for block/layer bit-width selection, and CPU/GPU on-demand bit-plane loading.
 
-Your takeaway from the title only:
+Your takeaway:
 
-> The missing axis is query-level adaptation: different prompts may deserve different precision policies before token-level routing even begins.
+> Basic query-level adaptation is no longer the novelty target. The project should move beyond QAQ toward hierarchical query-token-layer routing, risk-aware fallback, KV-cache/weight budget allocation, or hardware-aware prefetching.
 
 ### MixKVQ
 

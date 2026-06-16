@@ -60,10 +60,13 @@ literature:
       year: 2026
       url: "https://arxiv.org/abs/2606.11357"
       relevance: "System-side reminder that precision policies only matter if runtime kernels can execute mixed formats efficiently."
-  unverified_seeds:
-    - id: "qaq_unverified"
+  local_papers:
+    - id: "li2025qaq"
       title: "QAQ: Query-adaptive Mixed-precision Quantization for Large Language Models"
-      note: "Provided by user as a seed. I could not find a public indexed arXiv/web record for the exact title on 2026-06-15."
+      authors: "Li et al."
+      year: 2025
+      path: "QAQ.pdf"
+      relevance: "Directly aligned local seed paper: query-conditioned block/layer bit-width routing over bit-planes with CPU/GPU on-demand loading."
   open_problems:
     - "Quantization sensitivity is usually treated as layer-static, but recent papers show it changes by token, decoding step, and query."
     - "Any-precision quantization creates multiple precision choices, but the field still needs cheap, accurate policies for deciding which precision to use and when."
