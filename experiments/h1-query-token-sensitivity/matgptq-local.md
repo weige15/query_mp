@@ -20,6 +20,13 @@ Outputs go to:
 experiments/h1-query-token-sensitivity/runs/weights/
 ```
 
+The quantization wrapper defaults to MatGPTQ CPU offload so Llama-3.1-8B can run on a 24 GB GPU. For a quicker smoke run:
+
+```bash
+GPU_DEVICE=5 CALIB_TOKENS=131072 \
+bash experiments/h1-query-token-sensitivity/run_matgptq_quant.sh
+```
+
 ## Evaluate Uniform Slices
 
 ```bash

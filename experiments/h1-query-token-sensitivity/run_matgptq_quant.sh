@@ -7,7 +7,7 @@ REPO_DIR="$(cd -- "$SCRIPT_DIR/../.." && pwd)"
 MATGPTQ_DIR="${MATGPTQ_DIR:-$HOME/MatGPTQ}"
 MODEL_ID="${MODEL_ID:-meta-llama/Llama-3.1-8B-Instruct}"
 OUT_DIR="${OUT_DIR:-$SCRIPT_DIR/runs}"
-GPU_DEVICE="${GPU_DEVICE:-5}"
+GPU_DEVICE="${GPU_DEVICE:-${CUDA_VISIBLE_DEVICES:-5}}"
 
 SEQUENCE_LENGTH="${SEQUENCE_LENGTH:-4096}"
 CALIB_DATA="${CALIB_DATA:-fineweb_edu}"
@@ -18,13 +18,23 @@ MASTER_BITWIDTH="${MASTER_BITWIDTH:-8}"
 GROUP_SIZE="${GROUP_SIZE:-128}"
 NPROC="${NPROC:-1}"
 MASTER_PORT="${MASTER_PORT:-29501}"
+CPU_OFFLOAD_MODULES="${CPU_OFFLOAD_MODULES:-1}"
+CPU_OFFLOAD_ACTIVATIONS="${CPU_OFFLOAD_ACTIVATIONS:-1}"
 
 export PYTHONPATH="$MATGPTQ_DIR${PYTHONPATH:+:$PYTHONPATH}"
-export CUDA_VISIBLE_DEVICES="${CUDA_VISIBLE_DEVICES:-$GPU_DEVICE}"
+export CUDA_VISIBLE_DEVICES="$GPU_DEVICE"
 
 cd "$REPO_DIR"
 
 mkdir -p "$OUT_DIR/weights"
+
+extra_args=()
+if [[ "$CPU_OFFLOAD_MODULES" == "1" ]]; then
+  extra_args+=(--cpu_offload_modules)
+fi
+if [[ "$CPU_OFFLOAD_ACTIVATIONS" == "1" ]]; then
+  extra_args+=(--cpu_offload_activations)
+fi
 
 torchrun --nnodes=1 --nproc-per-node="$NPROC" --master_port "$MASTER_PORT" "$MATGPTQ_DIR/quant.py" \
   --model_name_or_path "$MODEL_ID" \
@@ -45,4 +55,5 @@ torchrun --nnodes=1 --nproc-per-node="$NPROC" --master_port "$MASTER_PORT" "$MAT
   --verbose \
   --dtype float16 \
   --attn_implementation eager \
+  "${extra_args[@]}" \
   --save_dir "$OUT_DIR/weights"
