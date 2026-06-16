@@ -1,9 +1,12 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-MATGPTQ_DIR="${MATGPTQ_DIR:-/home/kuotzuwei15/MatGPTQ}"
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+REPO_DIR="$(cd -- "$SCRIPT_DIR/../.." && pwd)"
+
+MATGPTQ_DIR="${MATGPTQ_DIR:-$HOME/MatGPTQ}"
 MODEL_ID="${MODEL_ID:-meta-llama/Llama-3.1-8B-Instruct}"
-RUN_DIR="${RUN_DIR:-$PWD/experiments/h1-query-token-sensitivity/runs}"
+RUN_DIR="${RUN_DIR:-$SCRIPT_DIR/runs}"
 MODEL_SHORT="${MODEL_SHORT:-${MODEL_ID##*/}}"
 QUANT_WEIGHTS="${QUANT_WEIGHTS:-$RUN_DIR/weights/$MODEL_SHORT}"
 
@@ -15,6 +18,8 @@ MASTER_BITWIDTH="${MASTER_BITWIDTH:-8}"
 SLICE_BITS="${SLICE_BITS:-3 4 8}"
 
 export PYTHONPATH="$MATGPTQ_DIR${PYTHONPATH:+:$PYTHONPATH}"
+
+cd "$REPO_DIR"
 
 mkdir -p "$RUN_DIR/ppl"
 

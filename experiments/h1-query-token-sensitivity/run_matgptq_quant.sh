@@ -1,9 +1,12 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-MATGPTQ_DIR="${MATGPTQ_DIR:-/home/kuotzuwei15/MatGPTQ}"
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+REPO_DIR="$(cd -- "$SCRIPT_DIR/../.." && pwd)"
+
+MATGPTQ_DIR="${MATGPTQ_DIR:-$HOME/MatGPTQ}"
 MODEL_ID="${MODEL_ID:-meta-llama/Llama-3.1-8B-Instruct}"
-OUT_DIR="${OUT_DIR:-$PWD/experiments/h1-query-token-sensitivity/runs}"
+OUT_DIR="${OUT_DIR:-$SCRIPT_DIR/runs}"
 
 SEQUENCE_LENGTH="${SEQUENCE_LENGTH:-4096}"
 CALIB_DATA="${CALIB_DATA:-fineweb_edu}"
@@ -16,6 +19,8 @@ NPROC="${NPROC:-1}"
 MASTER_PORT="${MASTER_PORT:-29501}"
 
 export PYTHONPATH="$MATGPTQ_DIR${PYTHONPATH:+:$PYTHONPATH}"
+
+cd "$REPO_DIR"
 
 mkdir -p "$OUT_DIR/weights"
 

@@ -1,10 +1,15 @@
-# Local MatGPTQ Experiment
+# MatGPTQ Experiment
 
-This repo can run MatGPTQ without editing `~/MatGPTQ`.
+This repo can run MatGPTQ without editing `~/MatGPTQ`. The scripts are path-safe for the lab server path:
+
+```text
+/nfs/home/s314511048/query_mp
+```
 
 ## Quantize
 
 ```bash
+cd /nfs/home/s314511048/query_mp
 bash experiments/h1-query-token-sensitivity/run_matgptq_quant.sh
 ```
 
@@ -17,6 +22,7 @@ experiments/h1-query-token-sensitivity/runs/weights/
 ## Evaluate Uniform Slices
 
 ```bash
+cd /nfs/home/s314511048/query_mp
 bash experiments/h1-query-token-sensitivity/run_matgptq_ppl_slices.sh
 ```
 
@@ -29,7 +35,9 @@ experiments/h1-query-token-sensitivity/runs/ppl/
 ## Useful Overrides
 
 ```bash
+cd /nfs/home/s314511048/query_mp
 MODEL_ID=/path/or/hf-id \
+MATGPTQ_DIR=$HOME/MatGPTQ \
 CALIB_TOKENS=131072 \
 EVAL_TOKENS=65536 \
 SLICE_BITS="3 4 8" \
