@@ -10,6 +10,7 @@ This repo can run MatGPTQ without editing `~/MatGPTQ`. The scripts are path-safe
 
 ```bash
 cd /nfs/home/s314511048/query_mp
+GPU_DEVICE=5 \
 bash experiments/h1-query-token-sensitivity/run_matgptq_quant.sh
 ```
 
@@ -23,6 +24,7 @@ experiments/h1-query-token-sensitivity/runs/weights/
 
 ```bash
 cd /nfs/home/s314511048/query_mp
+GPU_DEVICE=5 \
 bash experiments/h1-query-token-sensitivity/run_matgptq_ppl_slices.sh
 ```
 
@@ -38,6 +40,7 @@ experiments/h1-query-token-sensitivity/runs/ppl/
 cd /nfs/home/s314511048/query_mp
 MODEL_ID=/path/or/hf-id \
 MATGPTQ_DIR=$HOME/MatGPTQ \
+GPU_DEVICE=5 \
 CALIB_TOKENS=131072 \
 EVAL_TOKENS=65536 \
 SLICE_BITS="3 4 8" \
