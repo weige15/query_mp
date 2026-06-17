@@ -22,6 +22,7 @@ EVAL_TOKENS="${EVAL_TOKENS:-8192}"
 MAX_SAMPLES="${MAX_SAMPLES:-8}"
 MAX_MODULES="${MAX_MODULES:-0}"
 MODULE_REGEX="${MODULE_REGEX:-.*layers.*((q|k|v|o|gate|up|down)_proj)$}"
+PROMPTS_JSONL="${PROMPTS_JSONL:-}"
 
 export MATGPTQ_DIR MODEL_ID MODEL_SHORT RUN_DIR GPU_DEVICE
 export BITS_LIST BITS_WEIGHTS SLICE_BITS EVAL_DATASETS
@@ -41,7 +42,7 @@ QUANT_WEIGHTS="${QUANT_WEIGHTS:-$RUN_DIR/weights/$MODEL_SHORT}"
 SENS_DIR="$RUN_DIR/h1_sensitivity"
 SENS_CSV="$SENS_DIR/sensitivity.csv"
 
-python "$SCRIPT_DIR/scripts/collect_h1_sensitivity.py" \
+collect_args=(
   --model_name_or_path "$MODEL_ID" \
   --matgptq_dir "$MATGPTQ_DIR" \
   --quant_weights_path "$QUANT_WEIGHTS" \
@@ -54,6 +55,13 @@ python "$SCRIPT_DIR/scripts/collect_h1_sensitivity.py" \
   --module_regex "$MODULE_REGEX" \
   --high_bit "$HIGH_BIT" \
   --low_bits $LOW_BITS
+)
+
+if [[ -n "$PROMPTS_JSONL" ]]; then
+  collect_args+=(--prompts_jsonl "$PROMPTS_JSONL")
+fi
+
+python "$SCRIPT_DIR/scripts/collect_h1_sensitivity.py" "${collect_args[@]}"
 
 python "$SCRIPT_DIR/scripts/analyze_h1_sensitivity.py" \
   --input_csv "$SENS_CSV" \
