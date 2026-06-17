@@ -16,3 +16,4 @@ Thumbs.db
 *.pdf:Zone.Identifier
 .venv/
 experiments/h1-query-token-sensitivity/runs/weights
+matquant_ppt/

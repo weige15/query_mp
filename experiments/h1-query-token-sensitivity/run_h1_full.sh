@@ -23,6 +23,9 @@ MAX_SAMPLES="${MAX_SAMPLES:-8}"
 MAX_MODULES="${MAX_MODULES:-0}"
 MODULE_REGEX="${MODULE_REGEX:-.*layers.*((q|k|v|o|gate|up|down)_proj)$}"
 PROMPTS_JSONL="${PROMPTS_JSONL:-}"
+ANALYSIS_STEPS="${ANALYSIS_STEPS:-500}"
+ANALYSIS_SAMPLE_FRACTION="${ANALYSIS_SAMPLE_FRACTION:-1}"
+ANALYSIS_NO_SCORED_CSV="${ANALYSIS_NO_SCORED_CSV:-0}"
 
 export MATGPTQ_DIR MODEL_ID MODEL_SHORT RUN_DIR GPU_DEVICE
 export BITS_LIST BITS_WEIGHTS SLICE_BITS EVAL_DATASETS
@@ -60,47 +63,61 @@ if [[ -n "$PROMPTS_JSONL" ]]; then
   collect_args+=(--prompts_jsonl "$PROMPTS_JSONL")
 fi
 
-IFS=',' read -r -a SENS_GPUS <<< "$GPU_DEVICE"
-if (( ${#SENS_GPUS[@]} > 1 )); then
-  mkdir -p "$SENS_DIR"
-  rm -f "$SENS_DIR"/sensitivity_shard_*.csv "$SENS_DIR"/sensitivity_shard_*.log "$SENS_CSV"
-  pids=()
-  cleanup_shards() {
-    if (( ${#pids[@]} > 0 )); then
-      kill "${pids[@]}" 2>/dev/null || true
-    fi
-  }
-  trap cleanup_shards INT TERM EXIT
-  for shard_index in "${!SENS_GPUS[@]}"; do
-    shard_csv="$SENS_DIR/sensitivity_shard_${shard_index}.csv"
-    shard_log="$SENS_DIR/sensitivity_shard_${shard_index}.log"
-    CUDA_VISIBLE_DEVICES="${SENS_GPUS[$shard_index]}" python "$SCRIPT_DIR/scripts/collect_h1_sensitivity.py" \
+if [[ "${SKIP_COLLECT:-0}" != "1" ]]; then
+  IFS=',' read -r -a SENS_GPUS <<< "$GPU_DEVICE"
+  if (( ${#SENS_GPUS[@]} > 1 )); then
+    mkdir -p "$SENS_DIR"
+    rm -f "$SENS_DIR"/sensitivity_shard_*.csv "$SENS_DIR"/sensitivity_shard_*.log "$SENS_CSV"
+    pids=()
+    cleanup_shards() {
+      if (( ${#pids[@]} > 0 )); then
+        kill "${pids[@]}" 2>/dev/null || true
+      fi
+    }
+    trap cleanup_shards INT TERM EXIT
+    for shard_index in "${!SENS_GPUS[@]}"; do
+      shard_csv="$SENS_DIR/sensitivity_shard_${shard_index}.csv"
+      shard_log="$SENS_DIR/sensitivity_shard_${shard_index}.log"
+      CUDA_VISIBLE_DEVICES="${SENS_GPUS[$shard_index]}" python "$SCRIPT_DIR/scripts/collect_h1_sensitivity.py" \
+        "${collect_args[@]}" \
+        --output_csv "$shard_csv" \
+        --sample_shard_count "${#SENS_GPUS[@]}" \
+        --sample_shard_index "$shard_index" \
+        > "$shard_log" 2>&1 &
+      pids+=("$!")
+    done
+    for pid in "${pids[@]}"; do
+      wait "$pid"
+    done
+    trap - INT TERM EXIT
+    first_shard="$SENS_DIR/sensitivity_shard_0.csv"
+    head -n 1 "$first_shard" > "$SENS_CSV"
+    for shard_csv in "$SENS_DIR"/sensitivity_shard_*.csv; do
+      tail -n +2 "$shard_csv" >> "$SENS_CSV"
+    done
+  else
+    python "$SCRIPT_DIR/scripts/collect_h1_sensitivity.py" \
       "${collect_args[@]}" \
-      --output_csv "$shard_csv" \
-      --sample_shard_count "${#SENS_GPUS[@]}" \
-      --sample_shard_index "$shard_index" \
-      > "$shard_log" 2>&1 &
-    pids+=("$!")
-  done
-  for pid in "${pids[@]}"; do
-    wait "$pid"
-  done
-  trap - INT TERM EXIT
-  first_shard="$SENS_DIR/sensitivity_shard_0.csv"
-  head -n 1 "$first_shard" > "$SENS_CSV"
-  for shard_csv in "$SENS_DIR"/sensitivity_shard_*.csv; do
-    tail -n +2 "$shard_csv" >> "$SENS_CSV"
-  done
-else
-  python "$SCRIPT_DIR/scripts/collect_h1_sensitivity.py" \
-    "${collect_args[@]}" \
-    --output_csv "$SENS_CSV"
+      --output_csv "$SENS_CSV"
+  fi
+elif [[ ! -f "$SENS_CSV" ]]; then
+  echo "SKIP_COLLECT=1 but missing $SENS_CSV" >&2
+  exit 1
 fi
 
-python "$SCRIPT_DIR/scripts/analyze_h1_sensitivity.py" \
+analysis_args=(
   --input_csv "$SENS_CSV" \
   --out_dir "$SENS_DIR/analysis" \
-  --high_bit "$HIGH_BIT"
+  --high_bit "$HIGH_BIT" \
+  --steps "$ANALYSIS_STEPS" \
+  --sample_fraction "$ANALYSIS_SAMPLE_FRACTION"
+)
+
+if [[ "$ANALYSIS_NO_SCORED_CSV" == "1" ]]; then
+  analysis_args+=(--no_scored_csv)
+fi
+
+python "$SCRIPT_DIR/scripts/analyze_h1_sensitivity.py" "${analysis_args[@]}"
 
 echo "H1 outputs:"
 echo "$SENS_CSV"

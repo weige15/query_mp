@@ -17,6 +17,10 @@ def parse_args():
     parser.add_argument("--steps", type=int, default=500)
     parser.add_argument("--lr", type=float, default=0.1)
     parser.add_argument("--l2", type=float, default=1e-4)
+    parser.add_argument("--sample_fraction", type=float, default=1.0)
+    parser.add_argument("--sample_seed", type=int, default=0)
+    parser.add_argument("--csv_chunksize", type=int, default=1_000_000)
+    parser.add_argument("--no_scored_csv", action="store_true")
     return parser.parse_args()
 
 
@@ -49,19 +53,19 @@ def average_precision(y, score):
 
 
 def one_hot(series, prefix):
-    dummies = pd.get_dummies(series.astype(str), prefix=prefix, dtype=float)
+    dummies = pd.get_dummies(series.astype(str), prefix=prefix, dtype=np.float32)
     return dummies
 
 
 def make_matrix(df, mode, train_columns=None, means=None, stds=None):
     numeric = pd.DataFrame(index=df.index)
-    numeric["bit"] = df["bit"].astype(float)
-    numeric["token_pos"] = df["token_pos"].astype(float)
-    numeric["activation_norm"] = np.log1p(df["activation_norm"].astype(float))
-    numeric["activation_outlier"] = df["activation_outlier"].astype(float)
-    numeric["high_entropy"] = df["high_entropy"].astype(float)
-    numeric["high_margin"] = df["high_margin"].astype(float)
-    numeric["high_loss"] = df["high_loss"].astype(float)
+    numeric["bit"] = df["bit"].astype(np.float32)
+    numeric["token_pos"] = df["token_pos"].astype(np.float32)
+    numeric["activation_norm"] = np.log1p(df["activation_norm"].astype(np.float32))
+    numeric["activation_outlier"] = df["activation_outlier"].astype(np.float32)
+    numeric["high_entropy"] = df["high_entropy"].astype(np.float32)
+    numeric["high_margin"] = df["high_margin"].astype(np.float32)
+    numeric["high_loss"] = df["high_loss"].astype(np.float32)
 
     if mode == "layer_only":
         x = one_hot(df["module_name"], "module")
@@ -84,7 +88,7 @@ def make_matrix(df, mode, train_columns=None, means=None, stds=None):
         means = x[numeric_cols].mean()
         stds = x[numeric_cols].std().replace(0, 1.0)
     x.loc[:, numeric_cols] = (x[numeric_cols] - means) / stds
-    return x.to_numpy(dtype=float), train_columns, means, stds
+    return x.to_numpy(dtype=np.float32), train_columns, means, stds
 
 
 def train_logreg(x, y, steps, lr, l2):
@@ -121,15 +125,17 @@ def calibration_table(y, score, bins=10):
     return pd.DataFrame(rows)
 
 
-def evaluate_model(df, train_df, test_df, y_train, y_test, mode, args):
+def evaluate_model(df, train_df, test_df, y_train, y_test, mode, args, score_all=True):
     x_train, cols, means, stds = make_matrix(train_df, mode)
     x_test, _, _, _ = make_matrix(test_df, mode, cols, means, stds)
     w = train_logreg(x_train, y_train, args.steps, args.lr, args.l2)
     train_score = predict_logreg(w, x_train)
     test_score = predict_logreg(w, x_test)
 
-    x_all, _, _, _ = make_matrix(df, mode, cols, means, stds)
-    all_score = predict_logreg(w, x_all)
+    all_score = None
+    if score_all:
+        x_all, _, _, _ = make_matrix(df, mode, cols, means, stds)
+        all_score = predict_logreg(w, x_all)
 
     metrics = {
         "mode": mode,
@@ -140,6 +146,23 @@ def evaluate_model(df, train_df, test_df, y_train, y_test, mode, args):
     }
     feature_weights = pd.DataFrame({"feature": ["intercept"] + cols, "weight": w})
     return metrics, all_score, test_score, feature_weights
+
+
+def read_input_csv(args):
+    if not 0 < args.sample_fraction <= 1:
+        raise SystemExit("--sample_fraction must be in (0, 1].")
+    if args.sample_fraction == 1:
+        return pd.read_csv(args.input_csv)
+
+    rng = np.random.default_rng(args.sample_seed)
+    chunks = []
+    for chunk in pd.read_csv(args.input_csv, chunksize=args.csv_chunksize):
+        mask = rng.random(len(chunk)) < args.sample_fraction
+        if mask.any():
+            chunks.append(chunk.loc[mask])
+    if not chunks:
+        raise SystemExit("CSV sampling produced zero rows; increase --sample_fraction.")
+    return pd.concat(chunks, ignore_index=True)
 
 
 def routing_curve(df, score, high_bit):
@@ -282,7 +305,7 @@ def main():
     out_dir = Path(args.out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
 
-    df = pd.read_csv(args.input_csv)
+    df = read_input_csv(args)
     df["loss_delta"] = df["loss_delta"].astype(float)
     threshold = float(df["loss_delta"].quantile(args.sensitive_quantile))
     df["high_sensitivity"] = (df["loss_delta"] >= threshold).astype(int)
@@ -300,7 +323,7 @@ def main():
 
     metrics = []
     layer_metrics, layer_score, _, layer_weights = evaluate_model(
-        df, train_df, test_df, y_train, y_test, "layer_only", args
+        df, train_df, test_df, y_train, y_test, "layer_only", args, score_all=not args.no_scored_csv
     )
     dynamic_metrics, dynamic_score, test_score, dynamic_weights = evaluate_model(
         df, train_df, test_df, y_train, y_test, "dynamic", args
@@ -310,6 +333,7 @@ def main():
     out_metrics = {
         "sensitive_threshold": threshold,
         "positive_rate": float(df["high_sensitivity"].mean()),
+        "analysis_sample_fraction": float(args.sample_fraction),
         "train_samples": [int(x) for x in sorted(train_ids)],
         "test_samples": [int(x) for x in sorted(set(sample_ids) - train_ids)],
         "metrics": metrics,
@@ -325,9 +349,11 @@ def main():
     calibration_table(y_test, test_score).to_csv(out_dir / "calibration.csv", index=False)
 
     scored = df.copy()
-    scored["layer_only_score"] = layer_score
+    if layer_score is not None:
+        scored["layer_only_score"] = layer_score
     scored["dynamic_score"] = dynamic_score
-    scored.to_csv(out_dir / "sensitivity_scored.csv", index=False)
+    if not args.no_scored_csv:
+        scored.to_csv(out_dir / "sensitivity_scored.csv", index=False)
 
     routing = routing_curve(scored, scored["dynamic_score"].to_numpy(), args.high_bit)
     routing.to_csv(out_dir / "routing_proxy.csv", index=False)
