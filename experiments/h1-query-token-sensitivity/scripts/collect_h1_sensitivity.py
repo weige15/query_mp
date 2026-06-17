@@ -33,6 +33,8 @@ def parse_args():
     parser.add_argument("--max_samples", type=int, default=8)
     parser.add_argument("--module_regex", default=r".*layers.*((q|k|v|o|gate|up|down)_proj)$")
     parser.add_argument("--max_modules", type=int, default=0, help="0 means all matching modules.")
+    parser.add_argument("--sample_shard_count", type=int, default=1)
+    parser.add_argument("--sample_shard_index", type=int, default=0)
     parser.add_argument("--high_bit", type=int, default=8)
     parser.add_argument("--low_bits", nargs="+", type=int, default=[3, 4, 6])
     parser.add_argument("--master_bitwidth", type=int, default=8)
@@ -183,6 +185,10 @@ def write_rows(writer, sample_id, category, bit, module_name, high, low, activat
 
 def main():
     args = parse_args()
+    if args.sample_shard_count < 1:
+        raise SystemExit("--sample_shard_count must be >= 1.")
+    if not 0 <= args.sample_shard_index < args.sample_shard_count:
+        raise SystemExit("--sample_shard_index must be in [0, sample_shard_count).")
     add_matgptq_to_path(args.matgptq_dir)
 
     from src.model_utils import load_mat_gptq_weights, select_layers
@@ -202,6 +208,13 @@ def main():
     )
     if not samples:
         raise SystemExit("No samples loaded.")
+    samples = [
+        (sample_id, input_ids, category)
+        for sample_id, (input_ids, category) in enumerate(samples)
+        if sample_id % args.sample_shard_count == args.sample_shard_index
+    ]
+    if not samples:
+        raise SystemExit("No samples assigned to this shard.")
 
     model = AutoModelForCausalLM.from_pretrained(
         args.model_name_or_path,
@@ -256,7 +269,7 @@ def main():
         writer.writeheader()
 
         with torch.no_grad():
-            for sample_id, (input_ids_cpu, category) in enumerate(tqdm(samples, desc="samples")):
+            for sample_id, input_ids_cpu, category in tqdm(samples, desc="samples"):
                 input_ids = input_ids_cpu.to(device)
                 high_logits = model(input_ids).logits
                 high = token_metrics(high_logits, input_ids)

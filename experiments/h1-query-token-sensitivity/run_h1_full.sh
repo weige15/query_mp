@@ -46,7 +46,6 @@ collect_args=(
   --model_name_or_path "$MODEL_ID" \
   --matgptq_dir "$MATGPTQ_DIR" \
   --quant_weights_path "$QUANT_WEIGHTS" \
-  --output_csv "$SENS_CSV" \
   --dataset "$COLLECT_DATASET" \
   --sequence_length "$SEQUENCE_LENGTH" \
   --eval_tokens "$EVAL_TOKENS" \
@@ -61,7 +60,35 @@ if [[ -n "$PROMPTS_JSONL" ]]; then
   collect_args+=(--prompts_jsonl "$PROMPTS_JSONL")
 fi
 
-python "$SCRIPT_DIR/scripts/collect_h1_sensitivity.py" "${collect_args[@]}"
+IFS=',' read -r -a SENS_GPUS <<< "$GPU_DEVICE"
+if (( ${#SENS_GPUS[@]} > 1 )); then
+  mkdir -p "$SENS_DIR"
+  rm -f "$SENS_DIR"/sensitivity_shard_*.csv "$SENS_DIR"/sensitivity_shard_*.log "$SENS_CSV"
+  pids=()
+  for shard_index in "${!SENS_GPUS[@]}"; do
+    shard_csv="$SENS_DIR/sensitivity_shard_${shard_index}.csv"
+    shard_log="$SENS_DIR/sensitivity_shard_${shard_index}.log"
+    CUDA_VISIBLE_DEVICES="${SENS_GPUS[$shard_index]}" python "$SCRIPT_DIR/scripts/collect_h1_sensitivity.py" \
+      "${collect_args[@]}" \
+      --output_csv "$shard_csv" \
+      --sample_shard_count "${#SENS_GPUS[@]}" \
+      --sample_shard_index "$shard_index" \
+      > "$shard_log" 2>&1 &
+    pids+=("$!")
+  done
+  for pid in "${pids[@]}"; do
+    wait "$pid"
+  done
+  first_shard="$SENS_DIR/sensitivity_shard_0.csv"
+  head -n 1 "$first_shard" > "$SENS_CSV"
+  for shard_csv in "$SENS_DIR"/sensitivity_shard_*.csv; do
+    tail -n +2 "$shard_csv" >> "$SENS_CSV"
+  done
+else
+  python "$SCRIPT_DIR/scripts/collect_h1_sensitivity.py" \
+    "${collect_args[@]}" \
+    --output_csv "$SENS_CSV"
+fi
 
 python "$SCRIPT_DIR/scripts/analyze_h1_sensitivity.py" \
   --input_csv "$SENS_CSV" \
