@@ -23,7 +23,9 @@ This is a stronger and more publishable framing than "make quantization better",
 
 ## Key Results
 
-No experiments have been run yet. The current contribution is scoping and hypothesis formation.
+The first MatGPTQ uniform-slice baseline on Llama-3.1-8B-Instruct produced WikiText2 perplexity of 7.09 at 8-bit, 7.30 at 4-bit, and 9.51 at 3-bit.
+
+This is preliminary baseline evidence, not a test of H1. It shows that uniform 4-bit is already close to 8-bit on aggregate language-modeling PPL, while uniform 3-bit is substantially worse. That pattern makes the research bar higher: a router must beat strong 4-bit/static baselines or selectively recover 3-bit failures under matched average-bit budgets.
 
 The initial literature-backed direction is:
 
@@ -52,6 +54,7 @@ Fine-grained routing can look good in quality/bit metrics while losing in wall-c
 - Do not frame the work as generic quantization. The field already has many strong PTQ methods such as GPTQ, AWQ, SmoothQuant, and OmniQuant.
 - Do not frame the work as static mixed precision only. The seed papers are about runtime adaptation.
 - Do not optimize only average perplexity. The relevant deployment question includes tail risk: which queries fail when the router under-allocates precision?
+- Do not treat cheap WikiText2 aggregate PPL as sufficient evidence. H1 needs per-token/per-layer sensitivity labels, downstream task flips, held-out prompt categories, uncertainty estimates, and runtime overhead.
 - Start with layer-by-token routing before channel- or element-level routing. It is more implementable and closer to existing mixed-precision execution.
 - Treat KV cache as an extension, not the first dependency. Weight-only routing gives a cleaner first pilot; KV-cache routing becomes important for long-context reasoning.
 - QAQ is now available locally as `QAQ.pdf`. It validates that query-adaptive block/layer-wise precision routing is directly aligned with this project, but also means the novelty should move beyond basic query-conditioned bit-width selection.
@@ -69,7 +72,13 @@ Fine-grained routing can look good in quality/bit metrics while losing in wall-c
 
 ## Optimization Trajectory
 
-No inner-loop runs yet. The first trajectory should track quality degradation versus average effective bits and latency for:
+The first recorded baseline trajectory is:
+
+1. 8-bit uniform MatGPTQ on WikiText2: PPL 7.09.
+2. 4-bit uniform MatGPTQ on WikiText2: PPL 7.30.
+3. 3-bit uniform MatGPTQ on WikiText2: PPL 9.51.
+
+The robust trajectory should next track quality degradation versus average effective bits and latency for:
 
 1. Uniform precision.
 2. Static layer-wise mixed precision.

@@ -18,20 +18,19 @@ Report all three axes:
 - Compression: average effective bits and peak memory.
 - Runtime: prefill latency, decode ms/token, throughput, and router overhead.
 
-## Pilot Benchmarks
+## Benchmark Suite
 
-Start with cheap, repeatable benchmarks:
+Use a broad suite by default. WikiText-2 alone is a smoke check, not evidence for the research claim.
 
 - WikiText-2 perplexity.
-- C4 perplexity subset.
+- C4 perplexity.
 - PIQA, HellaSwag, ARC-Easy, ARC-Challenge, WinoGrande via lm-evaluation-harness.
-
-Then add harder stress tests:
-
 - GSM8K or MATH subset for reasoning.
 - HumanEval or MBPP subset for code if model supports code.
 - LongBench or synthetic retrieval for long-context KV-cache routing.
 - Prompt categories with rare tokens, high entropy, or long contexts.
+
+Run at least one train/calibration split and one held-out split per dataset family. Report confidence intervals or bootstrap uncertainty for quality and sensitivity-prediction metrics.
 
 ## Baselines
 
@@ -98,7 +97,17 @@ Possible labels for training or evaluating the router:
 - Loss delta: next-token negative log likelihood difference.
 - Task flip: whether final answer correctness changes.
 
-Use cheap labels first. Task-flip labels are more expensive and noisier but more semantically meaningful.
+Use token/layer labels and task-flip labels together where possible. Token/layer labels explain mechanism; task flips establish whether the sensitivity matters.
+
+## Robustness Checks
+
+- Held-out prompt categories.
+- Held-out documents for language modeling.
+- Different calibration data from evaluation data.
+- At least one second model family or size when compute allows.
+- Multiple average-bit budgets, especially between 3-bit and 4-bit where the uniform-slice gap is large.
+- Simulated oracle, replayed schedule, and online router runs to separate policy quality from runtime overhead.
+- Worst-case and tail-risk reporting, not only mean perplexity or mean accuracy.
 
 ## Reporting Standard
 
@@ -116,11 +125,12 @@ Every result should report:
 
 ## Success Criteria
 
-A strong pilot result:
+A strong result:
 
 - Adaptive routing matches static mixed precision quality with at least 5-10 percent lower average effective bits, or
 - Adaptive routing improves perplexity/accuracy at matched average effective bits, and
 - Router overhead is small enough that end-to-end latency is not worse.
+- The result holds across more than one dataset family and does not rely only on WikiText2 aggregate perplexity.
 
 A negative but useful result:
 

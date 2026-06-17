@@ -106,11 +106,22 @@ hypotheses:
     priority: medium
 
 experiments:
-  proxy_metric: "Pareto frontier of quality degradation versus average effective bits, latency, and routing overhead. Pilot metric: WikiText-2/C4 perplexity delta at matched average bits."
+  proxy_metric: "Pareto frontier of quality degradation versus average effective bits, latency, and routing overhead. Robust evidence must include language-modeling, downstream-task, held-out-category, and tail-risk measurements; WikiText-2 aggregate PPL is only a smoke check."
   baseline_value: null
   best_value: null
   total_runs: 0
   trajectory: []
+  completed_baselines:
+    - id: "h1_matgptq_uniform_slices_wikitext2"
+      status: "preliminary"
+      model: "Llama-3.1-8B-Instruct"
+      method: "MatGPTQ uniform bit slices"
+      dataset: "WikiText2"
+      metrics:
+        ppl_8bit: 7.09
+        ppl_4bit: 7.30
+        ppl_3bit: 9.51
+      interpretation: "4-bit is close to 8-bit on aggregate WikiText2 PPL, while 3-bit degrades sharply. This motivates routing between 3/4/8-bit, but does not test H1's query-token-layer sensitivity claim."
   planned_baselines:
     - "FP16/BF16 reference"
     - "Uniform 4-bit weight-only quantization"
