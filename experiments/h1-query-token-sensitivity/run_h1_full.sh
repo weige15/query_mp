@@ -117,7 +117,7 @@ if [[ "$ANALYSIS_NO_SCORED_CSV" == "1" ]]; then
   analysis_args+=(--no_scored_csv)
 fi
 
-python "$SCRIPT_DIR/scripts/analyze_h1_sensitivity.py" "${analysis_args[@]}"
+python3 "$SCRIPT_DIR/scripts/analyze_h1_sensitivity.py" "${analysis_args[@]}"
 
 echo "H1 outputs:"
 echo "$SENS_CSV"
