@@ -65,6 +65,12 @@ if (( ${#SENS_GPUS[@]} > 1 )); then
   mkdir -p "$SENS_DIR"
   rm -f "$SENS_DIR"/sensitivity_shard_*.csv "$SENS_DIR"/sensitivity_shard_*.log "$SENS_CSV"
   pids=()
+  cleanup_shards() {
+    if (( ${#pids[@]} > 0 )); then
+      kill "${pids[@]}" 2>/dev/null || true
+    fi
+  }
+  trap cleanup_shards INT TERM EXIT
   for shard_index in "${!SENS_GPUS[@]}"; do
     shard_csv="$SENS_DIR/sensitivity_shard_${shard_index}.csv"
     shard_log="$SENS_DIR/sensitivity_shard_${shard_index}.log"
@@ -79,6 +85,7 @@ if (( ${#SENS_GPUS[@]} > 1 )); then
   for pid in "${pids[@]}"; do
     wait "$pid"
   done
+  trap - INT TERM EXIT
   first_shard="$SENS_DIR/sensitivity_shard_0.csv"
   head -n 1 "$first_shard" > "$SENS_CSV"
   for shard_csv in "$SENS_DIR"/sensitivity_shard_*.csv; do
