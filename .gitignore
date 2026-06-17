@@ -17,6 +17,6 @@ Thumbs.db
 .venv/
 experiments/h1-query-token-sensitivity/runs/weights
 matquant_ppt/
-experiments/h1-query-token-sensitivity/runs/h1_sensitivity/*.csv
+experiments/h1-query-token-sensitivity/runs/h1_sensitivity/sensitivity.csv
 experiments/h1-query-token-sensitivity/runs/
 experiments/h1-query-token-sensitivity/.nfs000000001080a0ba00008413
